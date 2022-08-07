@@ -2,9 +2,9 @@
 #
 #
 #  IRIS velo Source Code
-#  Copyright (C) 2022 - iris-ioc-velo-module
+#  Copyright (C) 2022 - Stephan Mikiss
 #  stephan.mikiss@gmail.com
-#  Created by iris-ioc-velo-module - 2022-08-07
+#  Created by Stephan Mikiss - 2022-08-07
 #
 #  License Lesser GNU GPL v3.0
 
@@ -104,7 +104,7 @@ class VeloHandler(object):
 
         self.log.info(f'[Handle_Hash] call run function with query {query} and query_name {query_name}')
 
-        run (query, query_name)
+        self.run(query, query_name)
 
         # if self.mod_config.get('velo_report_as_attribute') is True:
         #     self.log.info('Adding new attribute velo Domain Report to IOC')
