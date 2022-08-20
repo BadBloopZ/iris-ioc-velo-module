@@ -31,7 +31,7 @@ SELECT hunt(description='A first test hunt', artifacts='Generic.Forensic.LocalHa
   - on_postload_ioc_create
   - on_postload_ioc_update
 - Should be a similar module to IrisVTModule which queries VirusTotal after IOC creation on [GitHub](https://github.com/dfir-iris/iris-vt-module)
-- Challenge: Trigger the hunt on the correct Velociraptor instance (We deploy one instance per case as docker container)... (Currently solved via configuration file parameter in the module config)
+- Challenge: Trigger the hunt on the correct Velociraptor instance (We deploy one instance per case as docker container)... (Currently solved via configuration file parameter in the module config) -> Deprecated as Velociraptor now supports multi-tenancy since 0.6.6rc1. This will be included later on.
 
 Need to resolve the following error in docker logs:
 
@@ -52,6 +52,9 @@ Log query:
 ```
 sudo docker-compose logs -f | grep -v iriswebapp_nginx
 ```
+
+The error is generated as this module was only installed in the app container and not on the worker.. This was not specified anywhere :/
+However, after installing it on the worker as well, the module gets triggered. (Still some errors - at least other errors and I can see my log output)
 
 # Copyright
 

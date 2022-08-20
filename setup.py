@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(
-    name='iris-ioc-velo-module',
+    name='iris_ioc_velo_module',
     python_requires='>=3.9',
     version='0.1.0',
     packages=['iris_ioc_velo_module', 'iris_ioc_velo_module.velo_handler'],
