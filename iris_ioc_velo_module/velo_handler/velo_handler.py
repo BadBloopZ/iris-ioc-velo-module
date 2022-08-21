@@ -31,14 +31,17 @@ class VeloHandler(object):
         self.log = logger
         self.config = pyvelociraptor.LoadConfigFile(self.mod_config.get('velo_api_config'))
 
-    def run(self, query, query_name):
-    # Fill in the SSL params from the api_client config file. You can get such a file:
-    # velociraptor --config server.config.yaml config api_client > api_client.conf.yaml
+    def run_query(self, query, query_name):
+        # Fill in the SSL params from the api_client config file. You can get such a file:
+        # velociraptor --config server.config.yaml config api_client > api_client.conf.yaml
+        self.log.info('[run_query] was entered.')
 
         creds = grpc.ssl_channel_credentials(
             root_certificates=self.config["ca_certificate"].encode("utf8"),
             private_key=self.config["client_private_key"].encode("utf8"),
             certificate_chain=self.config["client_cert"].encode("utf8"))
+
+        self.log.info('[run_query] creds were loaded from config file.')
 
         # This option is required to connect to the grpc server by IP - we
         # use self signed certs.
@@ -102,9 +105,68 @@ class VeloHandler(object):
         query = f"SELECT hunt(description='A first test hunt', artifacts='Generic.Forensic.LocalHashes.Query', spec=dict(`Generic.Forensic.LocalHashes.Query`=dict(Hashes='Hash\n{ioc.ioc_value}\n')), expires=now() + 18000) FROM scope()"
         query_name = f"IRIS-IOC-Hash-{ioc.ioc_value}"
 
-        self.log.info(f'[Handle_Hash] call run function with query {query} and query_name {query_name}')
+        #self.log.info(f'[Handle_Hash] call run function with query {query} and query_name {query_name}')
 
-        self.run(query, query_name)
+        #self.run_query(query, query_name)
+
+        ## Add the function run_query into this to test solutions of the 'Error name not found' error.
+
+        self.log.info('[run_query] was entered.')
+
+        creds = grpc.ssl_channel_credentials(
+            root_certificates=self.config["ca_certificate"].encode("utf8"),
+            private_key=self.config["client_private_key"].encode("utf8"),
+            certificate_chain=self.config["client_cert"].encode("utf8"))
+
+        self.log.info('[run_query] creds were loaded from config file.')
+
+        # This option is required to connect to the grpc server by IP - we
+        # use self signed certs.
+        options = (('grpc.ssl_target_name_override', "VelociraptorServer",),)
+
+        # The first step is to open a gRPC channel to the server..
+        with grpc.secure_channel(self.config["api_connection_string"],
+                                creds, options) as channel:
+            stub = api_pb2_grpc.APIStub(channel)
+
+            # The request consists of one or more VQL queries. Note that
+            # you can collect artifacts by simply naming them using the
+            # "Artifact" plugin.
+            request = api_pb2.VQLCollectorArgs(
+                max_wait=1,
+                max_row=100,
+                Query=[api_pb2.VQLRequest(
+                    Name=query_name,
+                    VQL=query,
+                )]
+            )
+
+            # This will block as responses are streamed from the
+            # server. If the query is an event query we will run this loop
+            # forever.
+            for response in stub.Query(request):
+                if response.Response:
+                    # Each response represents a list of rows. The columns
+                    # are provided in their own field as an array, to
+                    # ensure column order is preserved if required. If you
+                    # dont care about column order just ignore the Columns
+                    # field. Note that although JSON does not specify the
+                    # order of keys in a dict Velociraptor always
+                    # maintains this order so an alternative to the
+                    # Columns field is to use a JSON parser that preserves
+                    # field ordering.
+
+                    # print("Columns %s:" % response.Columns)
+
+                    # The actual payload is a list of dicts. Each dict has
+                    # column names as keys and arbitrary (possibly nested)
+                    # values.
+                    package = json.loads(response.Response)
+                    self.log.info(f"[run(query)]JSON Response: {package}")
+
+                elif response.log:
+                    # Query execution logs are sent in their own messages.
+                    self.log.info("%s: %s" % (time.ctime(response.timestamp / 1000000), response.log))
 
         # if self.mod_config.get('velo_report_as_attribute') is True:
         #     self.log.info('Adding new attribute velo Domain Report to IOC')
