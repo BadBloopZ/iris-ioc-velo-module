@@ -33,72 +33,14 @@ SELECT hunt(description='A first test hunt', artifacts='Generic.Forensic.LocalHa
 - Should be a similar module to IrisVTModule which queries VirusTotal after IOC creation on [GitHub](https://github.com/dfir-iris/iris-vt-module)
 - Challenge: Trigger the hunt on the correct Velociraptor instance (We deploy one instance per case as docker container)... (Currently solved via configuration file parameter in the module config) -> Deprecated as Velociraptor now supports multi-tenancy since 0.6.6rc1. This will be included later on.
 
-Need to resolve the following error in docker logs:
 
-```log
-app_1       | 2022-08-07 17:34:22 :: INFO :: module_handler :: call_modules_hook :: Calling module iris_ioc_velo_module asynchronously for hook on_postload_ioc_update :: None
-worker_1    | [2022-08-07 17:34:22,199: INFO/MainProcess] Task app.iris_engine.module_handler.module_handler.task_hook_wrapper[ba6e1aa7-e486-498c-8afa-23a830cbe89c] received
-worker_1    | [2022-08-07 17:34:22,211: INFO/ForkPoolWorker-3] Calling module iris_ioc_velo_module for hook on_postload_ioc_update
-worker_1    | [2022-08-07 17:34:22,212: ERROR/ForkPoolWorker-3] Could not import root module iris_ioc_velo_module: No module named 'iris_ioc_velo_module'
-worker_1    | [2022-08-07 17:34:22,212: CRITICAL/ForkPoolWorker-3] Failed to run hook on_postload_ioc_update with module iris_ioc_velo_module. Error Unable to instantiate target module
-worker_1    | [2022-08-07 17:34:22,213: WARNING/ForkPoolWorker-3] Traceback (most recent call last):
-worker_1    |   File "/iriswebapp/app/iris_engine/module_handler/module_handler.py", line 453, in task_hook_wrapper
-worker_1    |     raise Exception('Unable to instantiate target module')
-worker_1    | Exception: Unable to instantiate target module
-worker_1    | [2022-08-07 17:34:22,222: INFO/ForkPoolWorker-3] Task app.iris_engine.module_handler.module_handler.task_hook_wrapper[ba6e1aa7-e486-498c-8afa-23a830cbe89c] succeeded in 0.020947525999872596s: <iris_interface.IrisInterfaceStatus.IIStatus object at 0x7f25df5b01f0>
-```
 
-Log query:
-```
-sudo docker-compose logs -f | grep -v iriswebapp_nginx
-```
 
-The error is generated as this module was only installed in the app container and not on the worker.. This was not specified anywhere :/
-However, after installing it on the worker as well, the module gets triggered. (Still some errors - at least other errors and I can see my log output)
+### How to install the module
+#### Automatically
+Run the *buildnpush2iris.sh* script. If you run docker as root, then run the script as root as well.
 
-I migrated the run_query function into the handle_hash function so no additional function has to be called as I received several 'Error name `run` could not be resolved errors'. However, I get the following error now. I guess this is due to some (docker) IP mixup. Potentially need correct IPs or DNS resolution..
-```log
-app_1       | 2022-08-20 10:46:37 :: INFO :: module_handler :: call_modules_hook :: Calling module iris_ioc_velo_module asynchronously for hook on_manual_trigger_ioc :: Get velo insight
-worker_1    | [2022-08-20 10:46:37,774: INFO/MainProcess] Task app.iris_engine.module_handler.module_handler.task_hook_wrapper[6486f44d-63b4-416b-b3e7-a6465c944fc7] received
-worker_1    | [2022-08-20 10:46:37,786: INFO/ForkPoolWorker-3] Calling module iris_ioc_velo_module for hook on_manual_trigger_ioc
-worker_1    | [2022-08-20 10:46:37,789: INFO/ForkPoolWorker-3] Using server configuration
-worker_1    | [2022-08-20 10:46:37,790: INFO/ForkPoolWorker-3] Retrieved server configuration
-worker_1    | [2022-08-20 10:46:37,792: INFO/ForkPoolWorker-3] Module has initiated
-worker_1    | [2022-08-20 10:46:37,793: INFO/ForkPoolWorker-3] Received on_manual_trigger_ioc with data: [<Ioc 1>]
-worker_1    | [2022-08-20 10:46:37,793: INFO/ForkPoolWorker-3] Using server configuration
-worker_1    | [2022-08-20 10:46:37,793: INFO/ForkPoolWorker-3] Retrieved server configuration
-worker_1    | [2022-08-20 10:46:37,807: INFO/ForkPoolWorker-3] [Handle_Hash]Starting Generic.Forensic.LocalHashes.Query hunt for 79e7ccb7d9f9acb5fcb84e408cca72eb
-worker_1    | [2022-08-20 10:46:37,807: INFO/ForkPoolWorker-3] [Handle_Hash]Received data: <Ioc 1>
-worker_1    | [2022-08-20 10:46:37,807: INFO/ForkPoolWorker-3] [Handle_Hash] run_query function will be called
-worker_1    | [2022-08-20 10:46:37,807: INFO/ForkPoolWorker-3] [run_query] was entered.
-worker_1    | [2022-08-20 10:46:37,807: INFO/ForkPoolWorker-3] [run_query] creds were loaded from config file.
-worker_1    | [2022-08-20 10:46:37,811: CRITICAL/ForkPoolWorker-3] Failed to run hook on_manual_trigger_ioc with module iris_ioc_velo_module. Error <_MultiThreadedRendezvous of RPC that terminated with:
-worker_1    |   status = StatusCode.UNAVAILABLE
-worker_1    |   details = "failed to connect to all addresses"
-worker_1    |   debug_error_string = "{"created":"@1660992397.810446585","description":"Failed to pick subchannel","file":"src/core/ext/filters/client_channel/client_channel.cc","file_line":3260,"referenced_errors":[{"created":"@1660992397.810445622","description":"failed to connect to all addresses","file":"src/core/lib/transport/error_utils.cc","file_line":167,"grpc_status":14}]}"
-worker_1    | >
-worker_1    | [2022-08-20 10:46:37,811: WARNING/ForkPoolWorker-3] Traceback (most recent call last):
-worker_1    |   File "/iriswebapp/app/iris_engine/module_handler/module_handler.py", line 447, in task_hook_wrapper
-worker_1    |     task_status = mod_inst.hooks_handler(hook_name, hook_ui_name, data=_obj)
-worker_1    |   File "/opt/venv/lib/python3.9/site-packages/iris_ioc_velo_module/IrisVeloInterface.py", line 94, in hooks_handler
-worker_1    |     status = self._handle_ioc(data=data)
-worker_1    |   File "/opt/venv/lib/python3.9/site-packages/iris_ioc_velo_module/IrisVeloInterface.py", line 128, in _handle_ioc
-worker_1    |     status = velo_handler.handle_hash(ioc=element)
-worker_1    |   File "/opt/venv/lib/python3.9/site-packages/iris_ioc_velo_module/velo_handler/velo_handler.py", line 147, in handle_hash
-worker_1    |     for response in stub.Query(request):
-worker_1    |   File "/opt/venv/lib/python3.9/site-packages/grpc/_channel.py", line 426, in __next__
-worker_1    |     return self._next()
-worker_1    |   File "/opt/venv/lib/python3.9/site-packages/grpc/_channel.py", line 826, in _next
-worker_1    |     raise self
-worker_1    | grpc._channel._MultiThreadedRendezvous: <_MultiThreadedRendezvous of RPC that terminated with:
-worker_1    |   status = StatusCode.UNAVAILABLE
-worker_1    |   details = "failed to connect to all addresses"
-worker_1    |   debug_error_string = "{"created":"@1660992397.810446585","description":"Failed to pick subchannel","file":"src/core/ext/filters/client_channel/client_channel.cc","file_line":3260,"referenced_errors":[{"created":"@1660992397.810445622","description":"failed to connect to all addresses","file":"src/core/lib/transport/error_utils.cc","file_line":167,"grpc_status":14}]}"
-worker_1    | >
-worker_1    | [2022-08-20 10:46:37,820: INFO/ForkPoolWorker-3] Task app.iris_engine.module_handler.module_handler.task_hook_wrapper[6486f44d-63b4-416b-b3e7-a6465c944fc7] succeeded in 0.0438004039997395s: <iris_interface.IrisInterfaceStatus.IIStatus object at 0x7f99bf610d90>
-```
-
-### How to run the module:
+#### Manually
 1. Build the wheel from the module root directory that contains the setup.py
 ```
 python3.9 setup.py bdist_wheel
@@ -116,6 +58,22 @@ sudo docker exec -it iris-web_app_1 /bin/sh -c "pip3 install dependencies/iris_i
 4. Restart the worker container
 ```
 sudo docker restart iris-web_worker_1
+```
+
+### Prerequisites
+The config file for the Velociraptor API is needed. I suggest to mount it to the docker container in the docker-compose file. E.g. put the api.config.yaml into /tmp/velo-config/ and mount the folder in docker. Afterwards, specify the config file in the *velo API config file* parameter of DFIR-IRIS module management.
+```
+volumes:
+      - iris-downloads:/home/iris/downloads
+      - user_templates:/home/iris/user_templates
+      - server_data:/home/iris/server_data
+      - /tmp/velo-config:/tmp/velo-config
+```
+
+### Useful commands
+1. Inspecting the logs of the module:
+```
+sudo docker-compose logs -f | grep -v iriswebapp_nginx
 ```
 
 
